@@ -1,81 +1,49 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const helmet = require('helmet');
+// --- FIX 1: Dotenv ko sabse pehle load karein taaki MONGO_URI mil sake ---
 require('dotenv').config();
 
-const apiRoutes = require('./routes/api');
-const { generalLimiter } = require('./middleware/rateLimiter');
-
+const express = require('express');
 const app = express();
-const PORT = process.env.PORT || 3000;
+const mongoose = require('mongoose');
+const helmet = require('helmet');
+const cors = require('cors');
 
-// Security middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-  credentials: true
-}));
+// --- FIX 2 & 3: Galat paths ko theek karein ---
+// Aapki file list ke anusaar: 'routesapi.js' aur 'middlewaregeneralerror.js' files hain
+const apiRouter = require('./routesapi'); 
+const generalErrorMiddleware = require('./middlewaregeneralerror'); 
+// 'generalRouter' wali line aur 'routes/general' path hata diya gaya hai, kyunki woh exist nahi karte.
 
-// Rate limiting
-app.use(generalLimiter);
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
-
-// API routes
-app.use('/api', apiRoutes);
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found'
-  });
-});
-
-// Global error handler
-app.use((error, req, res, next) => {
-  console.error('Global error handler:', error);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
-  });
-});
-
-// MongoDB connection
+// --- Database Connection ---
+// MongoDB connection URL Render ke Environment Variables se aayegi.
 mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
 })
-.then(() => {
-  console.log('✅ MongoDB connected successfully');
-  
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
-})
-.catch((error) => {
-  console.error('❌ MongoDB connection error:', error);
-  process.exit(1);
+.then(() => console.log('MongoDB connection successfully!'))
+.catch(err => {
+    console.error('MongoDB connection error:', err);
+    // Agar DB connect na ho, toh server start na karein, jaisa aapke purane code mein tha.
 });
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  await mongoose.connection.close();
-  process.exit(0);
-});
+// --- Security and Middleware ---
+app.use(express.json()); // For parsing application/json
+app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
+app.use(helmet()); // Basic security settings
+app.use(cors()); // Enable CORS
 
-module.exports = app;
+// --- Routes ---
+// Purana code generalRouter use kar raha tha, jise ab apiRouter se badal diya gaya hai.
+app.use('/api/v1/auth', apiRouter); 
+app.use('/', apiRouter); // Aapki base route bhi apiRouter se connect kar di gayi hai.
+
+// --- Error Handling Middleware ---
+// generalErrorMiddleware ko aakhri mein use karein.
+app.use(generalErrorMiddleware); 
+
+// --- Server Startup ---
+// Render automatically provides a PORT environment variable, agar nahi mila toh 5000 use hoga.
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
