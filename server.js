@@ -1,4 +1,4 @@
-// --- FIX 1: Dotenv ko sabse pehle load karein taaki MONGO_URI mil sake ---
+// --- FIX 1: Dotenv ko sabse pehle load karein ---
 require('dotenv').config();
 
 const express = require('express');
@@ -7,14 +7,13 @@ const mongoose = require('mongoose');
 const helmet = require('helmet');
 const cors = require('cors');
 
-// --- FIX 2 & 3: Galat paths ko theek karein ---
-// Aapki file list ke anusaar: 'routesapi.js' aur 'middlewaregeneralerror.js' files hain
-const apiRouter = require('./routesapi'); 
-const generalErrorMiddleware = require('./middlewaregeneralerror'); 
-// 'generalRouter' wali line aur 'routes/general' path hata diya gaya hai, kyunki woh exist nahi karte.
+// --- FIX 2: Galat paths ko .js extension se theek karein (Case-sensitivity fix) ---
+// Aapki files root folder mein hain (routesapi.js, middlewaregeneralerror.js)
+const apiRouter = require('./routesapi.js'); 
+const generalErrorMiddleware = require('./middlewaregeneralerror.js'); 
 
 // --- Database Connection ---
-// MongoDB connection URL Render ke Environment Variables se aayegi.
+// MONGO_URI Render ke Environment Variables se aayega.
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -22,7 +21,7 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('MongoDB connection successfully!'))
 .catch(err => {
     console.error('MongoDB connection error:', err);
-    // Agar DB connect na ho, toh server start na karein, jaisa aapke purane code mein tha.
+    // Agar DB connect na ho toh server start na karein
 });
 
 // --- Security and Middleware ---
@@ -32,16 +31,15 @@ app.use(helmet()); // Basic security settings
 app.use(cors()); // Enable CORS
 
 // --- Routes ---
-// Purana code generalRouter use kar raha tha, jise ab apiRouter se badal diya gaya hai.
+// Aapki routes file ka istemaal
 app.use('/api/v1/auth', apiRouter); 
-app.use('/', apiRouter); // Aapki base route bhi apiRouter se connect kar di gayi hai.
+app.use('/', apiRouter); 
 
 // --- Error Handling Middleware ---
-// generalErrorMiddleware ko aakhri mein use karein.
 app.use(generalErrorMiddleware); 
 
 // --- Server Startup ---
-// Render automatically provides a PORT environment variable, agar nahi mila toh 5000 use hoga.
+// PORT Render ke Environment Variables se milega, warna 5000 use hoga.
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
